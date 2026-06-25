@@ -264,8 +264,12 @@ size_t BotTree::serialize_size(void)
 bool BotTree::serialize(void *data_)
 {
                           #ifndef ONLY_LOCAL
-   memstream_set_buffer(buffer, MEM_STREAM_BUFFER_SIZE);
-   static memstream_t *stream = memstream_open(1);
+   /* memstream_open() now binds the backing buffer at open time (upstream
+    * libretro-common dropped memstream_set_buffer), so open against this
+    * instance's own buffer rather than relying on a previously-set global.
+    * Each BotTree in tree[] has its own buffer, so the stream must not be
+    * shared/static across instances. */
+   memstream_t *stream = memstream_open(buffer, MEM_STREAM_BUFFER_SIZE, 1);
    assert(stream != NULL);
    memstream_rewind(stream);
    assert(tree != NULL);
@@ -277,6 +281,7 @@ bool BotTree::serialize(void *data_)
    serializeSize = memstream_pos(stream);
    memstream_rewind(stream);
    memstream_read(stream, data_, serializeSize);     // read from the stream
+   memstream_close(stream);
   #endif
    return(true);
 }
@@ -285,8 +290,7 @@ bool BotTree::unserialize(const void *data_)
 {
                           #ifndef ONLY_LOCAL
 
-   memstream_set_buffer(buffer, MEM_STREAM_BUFFER_SIZE);
-   static memstream_t *stream = memstream_open(1);
+   memstream_t *stream = memstream_open(buffer, MEM_STREAM_BUFFER_SIZE, 1);
    assert(stream != NULL);
    memstream_rewind(stream);
    memstream_write(stream, data_, serialize_size());      // write to the stream
@@ -297,6 +301,7 @@ bool BotTree::unserialize(const void *data_)
    memstream_read(stream, &_direction1FrameAgo, sizeof(_direction1FrameAgo));                         // write to the stream
    memstream_read(stream, &_direction2FramesAgo, sizeof(_direction2FramesAgo));                       // write to the stream
    memstream_read(stream, &_shiveringCounter, sizeof(_shiveringCounter));                             // write to the stream
+   memstream_close(stream);
  #endif
    return(true);
 }
